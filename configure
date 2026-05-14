@@ -832,6 +832,10 @@ PBX_RESAMPLE
 RESAMPLE_DIR
 RESAMPLE_INCLUDE
 RESAMPLE_LIB
+PBX_RDKAFKA
+RDKAFKA_DIR
+RDKAFKA_INCLUDE
+RDKAFKA_LIB
 PBX_FFTW3
 FFTW3_DIR
 FFTW3_INCLUDE
@@ -1453,6 +1457,7 @@ with_popt
 with_portaudio
 with_pri
 with_radius
+with_rdkafka
 with_fftw3
 with_resample
 with_sndfile
@@ -2229,6 +2234,7 @@ Optional Packages:
   --with-portaudio=PATH   use PortAudio files in PATH
   --with-pri=PATH         use ISDN PRI files in PATH
   --with-radius=PATH      use Radius Client files in PATH
+  --with-rdkafka=PATH     use Apache Kafka C/C++ client library files in PATH
   --with-fftw3=PATH       use LIBFFTW3 files in PATH
   --with-resample=PATH    use LIBRESAMPLE files in PATH
   --with-sndfile=PATH     use libsndfile files in PATH
@@ -24660,6 +24666,31 @@ then :
 
 fi
 
+    RDKAFKA_DESCRIP="Apache Kafka C/C++ client library"
+    RDKAFKA_OPTION="rdkafka"
+    PBX_RDKAFKA=0
+
+# Check whether --with-rdkafka was given.
+if test ${with_rdkafka+y}
+then :
+  withval=$with_rdkafka;
+	case ${withval} in
+	n|no)
+	USE_RDKAFKA=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_RDKAFKA=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} RDKAFKA"
+	;;
+	*)
+	RDKAFKA_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} RDKAFKA"
+	;;
+	esac
+
+fi
 
 
 
@@ -42606,6 +42637,111 @@ _ACEOF
 fi
 
 
+if test "x${PBX_RDKAFKA}" != "x1" -a "${USE_RDKAFKA}" != "no"; then
+   pbxlibdir=""
+   # if --with-RDKAFKA=DIR has been specified, use it.
+   if test "x${RDKAFKA_DIR}" != "x"; then
+      if test -d ${RDKAFKA_DIR}/lib; then
+         pbxlibdir="-L${RDKAFKA_DIR}/lib"
+      else
+         pbxlibdir="-L${RDKAFKA_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for rd_kafka_interceptor_add_on_broker_state_change in -lrdkafka" >&5
+printf %s "checking for rd_kafka_interceptor_add_on_broker_state_change in -lrdkafka... " >&6; }
+if test ${ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_check_lib_save_LIBS=$LIBS
+LIBS="-lrdkafka ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char rd_kafka_interceptor_add_on_broker_state_change (void);
+int
+main (void)
+{
+return rd_kafka_interceptor_add_on_broker_state_change ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change=yes
+else case e in #(
+  e) ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change" >&5
+printf "%s\n" "$ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change" >&6; }
+if test "x$ac_cv_lib_rdkafka_rd_kafka_interceptor_add_on_broker_state_change" = xyes
+then :
+  AST_RDKAFKA_FOUND=yes
+else case e in #(
+  e) AST_RDKAFKA_FOUND=no ;;
+esac
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_RDKAFKA_FOUND}" = "yes"; then
+      RDKAFKA_LIB="${pbxlibdir} -lrdkafka "
+      # if --with-RDKAFKA=DIR has been specified, use it.
+      if test "x${RDKAFKA_DIR}" != "x"; then
+         RDKAFKA_INCLUDE="-I${RDKAFKA_DIR}/include"
+      fi
+      RDKAFKA_INCLUDE="${RDKAFKA_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${RDKAFKA_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "librdkafka/rdkafka.h" "ac_cv_header_librdkafka_rdkafka_h" "$ac_includes_default"
+if test "x$ac_cv_header_librdkafka_rdkafka_h" = xyes
+then :
+  RDKAFKA_HEADER_FOUND=1
+else case e in #(
+  e) RDKAFKA_HEADER_FOUND=0 ;;
+esac
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${RDKAFKA_HEADER_FOUND}" = "x0" ; then
+         RDKAFKA_LIB=""
+         RDKAFKA_INCLUDE=""
+      else
+
+         PBX_RDKAFKA=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_RDKAFKA 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
 
 if test "x${PBX_FFTW3}" != "x1" -a "${USE_FFTW3}" != "no"; then
    pbxlibdir=""
@@ -49947,4 +50083,3 @@ if test "${cross_compiling}" = "yes"; then
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: Cross Compilation = YES" >&5
 printf "%s\n" "$as_me: Cross Compilation = YES" >&6;}
 fi
-

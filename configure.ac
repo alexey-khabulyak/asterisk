@@ -651,6 +651,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PRI_SERVICE_MESSAGES], [ISDN service messages], [PRI
 AST_EXT_LIB_SETUP_OPTIONAL([PRI_REVERSE_CHARGE], [ISDN reverse charge], [PRI], [pri])
 # ------------------------------------^
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
+AST_EXT_LIB_SETUP([RDKAFKA], [Apache Kafka C/C++ client library], [rdkafka])
 AST_EXT_LIB_SETUP([FFTW3], [LIBFFTW3], [fftw3])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
 AST_EXT_LIB_SETUP([SNDFILE], [libsndfile], [sndfile])
@@ -2603,6 +2604,8 @@ if test "x$PBX_PRI" = "x1" ; then
 fi
 
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
+AST_PKG_CONFIG_CHECK([RDKAFKA], [rdkafka >= 2.0])
+AST_EXT_LIB_CHECK([RDKAFKA], [rdkafka], [rd_kafka_interceptor_add_on_broker_state_change], [librdkafka/rdkafka.h])
 AST_EXT_LIB_CHECK([FFTW3], [fftw3], [fftw_malloc], [fftw3.h])
 AST_EXT_LIB_CHECK([SNDFILE], [sndfile], [sf_open], [sndfile.h])
 

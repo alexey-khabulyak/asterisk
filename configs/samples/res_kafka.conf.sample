@@ -1,0 +1,81 @@
+;
+; Kafka integration
+;
+
+[general]
+enabled = yes
+
+; Asterisk must continue to start and route calls even when Kafka is down.
+init_without_kafka = yes
+
+
+[broker-1]
+type = broker
+
+; You may use either bootstrap.servers or host.  host is treated as an alias
+; for bootstrap.servers.
+bootstrap.servers = 127.0.0.1:9092
+
+; Production example:
+;bootstrap.servers = kafka-1:9093,kafka-2:9093,kafka-3:9093
+;security.protocol = SASL_SSL
+;sasl.mechanism = SCRAM-SHA-512
+;sasl.username = asterisk
+;sasl.password = secret
+;ssl.ca.location = /etc/ssl/certs/ca-certificates.crt
+
+
+[platform-events]
+type = producer
+broker = broker-1
+
+topic = asterisk-ami-events
+key = Uniqueid
+
+; Message payload format:
+;   json (default) - convert the AMI event body to a JSON object.
+;   raw            - send the raw AMI event body ("Key: Value\r\n...").
+; In both modes the field.* lines below are appended to every message (as
+; JSON members for json, as extra "Key: Value" lines for raw).
+;format = json
+
+field.env = dev
+field.node = 27
+field.tenant = 2
+;create_topic = yes
+;topic_partitions = 1
+;topic_replication_factor = 1
+
+; Event filters follow manager.conf's eventfilter style.
+; Without any eventfilter lines all events are forwarded.
+;
+; Advanced event filtering (preferred):
+;eventfilter(name(Newchannel)) =
+;eventfilter(name(Hangup)) =
+;eventfilter(name(DialBegin)) =
+;eventfilter(name(DialEnd)) =
+;eventfilter(name(CEL)) =
+;
+; Legacy style (substring match on raw event body):
+;eventfilter = Event: Newchannel
+
+
+[platform-commands]
+type = consumer
+broker = broker-1
+
+topic = asterisk-ami-commands
+group_id = asterisk-kafka
+
+enable.auto.commit = true
+auto.commit.interval.ms = 5000
+auto.offset.reset = latest
+
+create_topic = yes
+topic_partitions = 1
+topic_replication_factor = 1
+
+; Topic to produce AMI responses to. If omitted, responses are discarded.
+; AMI ActionID from the incoming command is returned by Asterisk in the AMI
+; response and can be used by the caller for correlation.
+reply_topic = asterisk-ami-events

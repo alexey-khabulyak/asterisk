@@ -1,0 +1,69 @@
+FROM debian:trixie
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── Toolchain ────────────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config autoconf-archive \
+    git wget curl ca-certificates bzip2 patch subversion autoconf automake \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Asterisk required dependencies ───────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libedit-dev \
+    libjansson-dev \
+    libsqlite3-dev \
+    uuid-dev \
+    libxml2-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Asterisk optional dependencies ───────────────────────────────────────────
+# Packages not available in Debian trixie are skipped intentionally:
+#   libgmime-2.6-dev   → superseded by libgmime-3.0-dev
+#   libsrtp0-dev       → superseded by libsrtp2-dev
+#   libc-client2007e-dev → removed from Debian
+#   libiksemel-dev       → removed from Debian
+#   libresample1-dev     → removed from Debian
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libspeex-dev libspeexdsp-dev \
+    libogg-dev libvorbis-dev \
+    libasound2-dev portaudio19-dev \
+    libcurl4-openssl-dev \
+    xmlstarlet bison flex \
+    libpq-dev \
+    unixodbc-dev \
+    libneon27-dev \
+    libgmime-3.0-dev \
+    liblua5.2-dev \
+    liburiparser-dev \
+    libxslt1-dev \
+    default-libmysqlclient-dev \
+    libbluetooth-dev \
+    libradcli-dev \
+    freetds-dev \
+    libjack-jackd2-dev \
+    libcap-dev \
+    libsnmp-dev \
+    libcorosync-common-dev libcpg-dev libcfg-dev \
+    libnewt-dev libpopt-dev \
+    libical-dev \
+    libspandsp-dev \
+    binutils-dev \
+    libsrtp2-dev \
+    libgsm1-dev \
+    doxygen graphviz \
+    zlib1g-dev \
+    libldap2-dev \
+    libcodec2-dev \
+    libfftw3-dev \
+    libsndfile1-dev \
+    libunbound-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Kafka client library ──────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    librdkafka-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/asterisk
