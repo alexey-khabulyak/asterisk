@@ -733,7 +733,7 @@ static int session_update(struct ari_ws_session *ari_ws_session,
 			general->write_timeout);
 	}
 
-	ao2_ref(ast_ws_session, +1);
+	ast_websocket_ref(ast_ws_session);
 	ari_ws_session->ast_ws_session = ast_ws_session;
 	ao2_lock(ari_ws_session);
 	for (i = 0; i < AST_VECTOR_SIZE(&ari_ws_session->message_queue); i++) {
@@ -826,6 +826,11 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 		for (v = upgrade_headers; v; v = v->next) {
 			ast_trace(3, "--> %s: %s\n", v->name, v->value);
 		}
+
+		ast_trace(2, "%s: Websocket query params:\n", remote_addr);
+		for (v = get_params; v; v = v->next) {
+			ast_trace(3, "--> %s: %s\n", v->name, v->value);
+		}
 	}
 
 	/*
@@ -849,10 +854,11 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 	ari_ws_session->connected = 1;
 	ast_trace(-1, "%s: Waiting for messages\n", remote_addr);
 	while ((msg = session_read(ari_ws_session))) {
-		ari_websocket_process_request(ari_ws_session, remote_addr,
+		ari_websocket_process_request(ari_ws_session, remote_addr, get_params,
 			upgrade_headers, ari_ws_session->app_name, msg);
 		ast_json_unref(msg);
 	}
+	ast_websocket_close(ast_ws_session, AST_WEBSOCKET_STATUS_GOING_AWAY);
 	ari_ws_session->connected = 0;
 
 	SCOPE_EXIT("%s: Websocket closed\n", remote_addr);
@@ -1003,6 +1009,8 @@ static void *outbound_session_handler_thread(void *obj)
 		 * We only want to send "ApplicationRegistered" events in the
 		 * case of a reconnect.  The initial connection will have already sent
 		 * the events when outbound_register_apps() was called.
+		 *
+		 * Note: session_update() bumps astws.
 		 */
 		session_update(session, astws, !already_sent_registers);
 		already_sent_registers = 0;
@@ -1022,6 +1030,8 @@ static void *outbound_session_handler_thread(void *obj)
 			session->thread = 0;
 			session->connected = 0;
 			ast_websocket_close(astws, 1000);
+			/* Clean up the reference held by session_update() */
+			ast_websocket_unref(astws);
 			session->ast_ws_session = NULL;
 			break;
 		}
@@ -1037,11 +1047,13 @@ static void *outbound_session_handler_thread(void *obj)
 		 */
 		while ((msg = session_read(session))) {
 			ari_websocket_process_request(session, session->remote_addr,
-				upgrade_headers, session->app_name, msg);
+				NULL, upgrade_headers, session->app_name, msg);
 			ast_json_unref(msg);
 		}
 
 		session->connected = 0;
+		ast_websocket_close(session->ast_ws_session, AST_WEBSOCKET_STATUS_GOING_AWAY);
+		/* Clean up the reference held by session_update() */
 		ast_websocket_unref(session->ast_ws_session);
 		session->ast_ws_session = NULL;
 		if (session->closing) {

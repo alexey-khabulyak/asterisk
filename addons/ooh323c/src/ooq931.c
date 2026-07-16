@@ -89,12 +89,21 @@ EXTERN int ooQ931Decode
    while (offset < length) {
       Q931InformationElement *ie;
       int ieOff = offset;
-      /* Get field discriminator */
+      /*
+       * Get field discriminator and advance offset to what should be
+       * the first (or only) byte of the IE length.
+       */
       int discriminator = data[offset++];
 
-      /* For discriminator with high bit set there is no data */
-      if ((discriminator & 0x80) == 0) {
-         int len = data[offset++], alen;
+      /*
+       * For discriminator with high bit == 0 there must be data.  The
+       * data length could be in the next 8 or 16 bits so there must be
+       * at least 1 byte after the discriminator.
+       *
+       * Make sure offset is still in-bounds.
+       */
+      if ((discriminator & 0x80) == 0 && offset < length) {
+         int len = data[offset], alen;
 
          if (discriminator == Q931UserUserIE) {
             /* Special case of User-user field, there is some confusion here as
@@ -106,13 +115,38 @@ EXTERN int ooQ931Decode
                However, at present we assume it is always 2 bytes until we find
                something that breaks it.
             */
-            len <<= 8;
-            len |= data[offset++];
 
-            /* we also have a protocol discriminator, which we ignore */
-            offset++;
+            /*
+             * Advance offset to point to the second byte of the length
+             * and make sure it's still in-bounds.
+             */
+            if (++offset >= length) {
+                return Q931_E_INVLENGTH;
+            }
+            /*
+             * Swap the bytes.
+             * Yes, this assumes we're running on a little-endian system but this is
+             * the original code from Objective Systems.
+             */
+            len <<= 8;
+            len |= data[offset];
+
+            /*
+             * We also have a nested protocol discriminator, which we ignore.
+             * Advance offset to point to the nested discriminator
+             * and make sure it's still in-bounds.
+             */
+            if (++offset >= length) {
+                return Q931_E_INVLENGTH;
+            }
             len--;
          }
+
+         /*
+          * Advance offset to point to the first data byte.
+          * We check bounds below.
+          */
+         ++offset;
 
          /* watch out for negative lengths! (ED, 11/5/03) */
          if (len < 0) {
@@ -192,11 +226,13 @@ EXTERN int ooQ931Decode
          screening indicators ;-) */
       if(ie->discriminator == Q931CallingPartyNumberIE)
       {
+         int numoffset=1;
          OOTRACEDBGB1("   CallingPartyNumber IE = {\n");
-         if(ie->length < OO_MAX_NUMBER_LENGTH)
+         if(!(0x80 & ie->data[0])) numoffset = 2;
+
+         if( (ie->length >= numoffset) &&
+             (ie->length < OO_MAX_NUMBER_LENGTH) )
          {
-            int numoffset=1;
-            if(!(0x80 & ie->data[0])) numoffset = 2;
             memcpy(number, ie->data+numoffset,ie->length-numoffset);
             number[ie->length-numoffset]='\0';
             OOTRACEDBGB2("      %s\n", number);
@@ -204,7 +240,7 @@ EXTERN int ooQ931Decode
                ooCallSetCallingPartyNumber(call, number);
          }
          else{
-            OOTRACEERR3("Error:Calling party number too long. (%s, %s)\n",
+            OOTRACEERR3("Error:Calling party number outside range. (%s, %s)\n",
                            call->callType, call->callToken);
          }
          OOTRACEDBGB1("   }\n");
@@ -214,7 +250,8 @@ EXTERN int ooQ931Decode
       if(ie->discriminator == Q931CalledPartyNumberIE)
       {
          OOTRACEDBGB1("   CalledPartyNumber IE = {\n");
-         if(ie->length < OO_MAX_NUMBER_LENGTH)
+         if( (ie->length >= 1) &&
+             (ie->length < OO_MAX_NUMBER_LENGTH) )
          {
             memcpy(number, ie->data+1,ie->length-1);
             number[ie->length-1]='\0';
@@ -223,7 +260,7 @@ EXTERN int ooQ931Decode
                ooCallSetCalledPartyNumber(call, number);
          }
          else{
-            OOTRACEERR3("Error:Calling party number too long. (%s, %s)\n",
+            OOTRACEERR3("Error:Calling party number outside range. (%s, %s)\n",
                            call->callType, call->callToken);
          }
          OOTRACEDBGB1("   }\n");

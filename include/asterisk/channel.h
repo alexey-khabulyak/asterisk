@@ -1654,14 +1654,7 @@ void ast_softhangup_all(void);
  * (use this if you are trying to
  * safely hangup a channel managed by another thread.
  *
- * \warning The channel passed to this function must NOT be locked.
- * ast_softhangup() calls ast_rtp_instance_set_stats_vars() to set RTP QOS variables.
- * If this channel is in a bridge, ast_rtp_instance_set_stats_vars() will
- * attempt to lock the bridge peer as well as this channel.  This can cause
- * a lock inversion if we already have this channel locked and another
- * thread tries to set bridge variables on the peer because it will have
- * locked the peer first, then this channel.  For this reason, we must
- * NOT have the channel locked when we call ast_softhangup().
+ * \note The channel passed to this function does not need to be locked.
  *
  * \return Returns 0 regardless
  */
@@ -2756,7 +2749,8 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
  * \param chan the channel
  * \param vars a linked list of variables
  *
- * \pre chan is locked
+ * \warning The channel must not be locked if there's a possibility that
+ * a dialplan function would be invoked.
  *
  * \details
  * Variable names can be for a regular channel variable or a dialplan function
@@ -4420,6 +4414,12 @@ int ast_channel_fd_count(const struct ast_channel *chan);
  */
 int ast_channel_fd_add(struct ast_channel *chan, int value);
 
+/* ARI reportable variables accessors */
+size_t ast_channel_internal_ari_reportable_vars_count(const struct ast_channel *chan);
+char *ast_channel_internal_ari_reportable_vars_get(const struct ast_channel *chan, size_t index);
+int ast_channel_internal_ari_reportable_vars_append(struct ast_channel *chan, char *key);
+char *ast_channel_internal_ari_reportable_vars_remove(struct ast_channel *chan, size_t index);
+
 pthread_t ast_channel_blocker(const struct ast_channel *chan);
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);
 
@@ -4608,6 +4608,20 @@ void ast_channel_set_ari_vars(size_t varc, char **vars);
  * \retval NULL on error
  */
 struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
+
+/*!
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ * \brief Set whether a channel variable should be included in REST events on the channel.
+ *
+ * \param chan Channel to update.
+ * \param variable Variable name or dialplan function expression.
+ * \param report_events Non-zero to include in REST events, zero to omit.
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_channel_set_ari_var_reportable(struct ast_channel *chan, const char *variable, int report_events);
 
 /*!
  * \since 12
